@@ -2,7 +2,7 @@ clear all; close all;
 tic;
 
 % Add path to my library
-addpath('C:\Users\thomas\Desktop\temp_gsa\lib')
+addpath('.\lib')
 
 lambda =1.035e-6;
 
@@ -56,7 +56,7 @@ D = Targetn.*exp(1i*Phase_TEN);
 Efield=Efield.*Tf;
 
 error = [];
-iteration_num= 20;
+iteration_num= 10;
 
 z = 0.1;
 

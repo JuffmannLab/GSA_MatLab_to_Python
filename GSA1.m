@@ -2,7 +2,7 @@ clear all; close all;
 tic;
 
 % Add path to my library
-addpath('C:\Users\thomas\Desktop\temp_gsa\lib')
+addpath('.\lib')
 
 
 Nx=2446; %nr of pixels used in the iteration code in order to solve sampling problem?
@@ -147,7 +147,7 @@ Z_p=0.5; %non critical sampling-<0.2
     for i=1:iteration_num
 tic
         %A = sqrt(Nx*Ny)*ifftshift(ifft2(ifftshift(D)));
-        A = propagateback(D,-1,lambda,dx,dy,Nx,Ny,X,Y,Z_p,Z_p,Z_p);
+        A = propagateback1(D,-1,lambda,dx,dy,Nx,Ny,X,Y,Z_p,Z_p,Z_p);
         A=A./sqrt(sum(sum(abs(A).^2))).*Tf;
 %         as = subplot(3,5,1); imagesc(abs(A).^2); title('SLM ideal Int.'); 
 %         as = [as subplot(3,5,6)]; imagesc(angle(A)); title('SLM ideal Phase'); 
@@ -158,7 +158,7 @@ tic
 %         as = [as subplot(3,5,7)]; imagesc(angle(B)); title('SLM true Phase'); 
 % 
         %C = 1/sqrt(Nx*Ny)*fftshift(fft2(fftshift(B)));
-        C = propagateforward(B,1,lambda,dx,dy,Nx,Ny,X,Y,Z_p,Z_p,Z_p);
+        C = propagateforward1(B,1,lambda,dx,dy,Nx,Ny,X,Y,Z_p,Z_p,Z_p);
         C = C./sqrt(sum(sum(abs(C).^2))).*Tf;
 %         as = [as subplot(3,5,3)]; imagesc(abs(C).^2); title('Image Int.'); 
 %         as = [as subplot(3,5,8)]; imagesc(angle(C)); title('Image Phase'); 
@@ -244,8 +244,8 @@ Z_sp=zeros(Ny,Nx);
 Z_sp(mask_sp==1) = Zernikepadded_spherical;
 % t1 = B.*exp(1i*(1*Z_sp));      
 t1 = exp(1i*(-1*Z_sp)); 
-t2 = propagateforward(t1,1,lambda,dx,dy,Nx,Ny,X,Y,0.2,0.2,0.2);
-t3 = propagateforward(B,1,lambda,dx,dy,Nx,Ny,X,Y,0.2,0.2,0.2);
+t2 = propagateforward1(t1,1,lambda,dx,dy,Nx,Ny,X,Y,0.2,0.2,0.2);
+t3 = propagateforward1(B,1,lambda,dx,dy,Nx,Ny,X,Y,0.2,0.2,0.2);
 figure(2121); subplot(1,2,1);imagesc(abs(t2(1215:1235,1214:1234)).^2) ;subplot(1,2,2);  imagesc(abs(t3(1215:1235,1214:1234)).^2)    
        
 
@@ -267,7 +267,7 @@ B2 = Efield.*exp(1i*(angl)).*exp(1i*(coef*helicalpattern));
 ab2 = angle(B2);
 heli = exp(1i*(coef*helicalpattern));
 ah = angle(heli);
-C2 = propagateforward(B2,1,lambda,dx,dy,Nx,Ny,X,Y,Z_p,Z_p,Z_p);
+C2 = propagateforward1(B2,1,lambda,dx,dy,Nx,Ny,X,Y,Z_p,Z_p,Z_p);
 f = 0.2;
 x1 = linspace(-lambda*f/2/dx,lambda*f/2/dx,Nx);
 y1 = linspace(-lambda*f/2/dy,lambda*f/2/dy,Ny);
@@ -293,50 +293,3 @@ p = polyfit(xf(ind),yf(ind),4);
 f = polyval(p,xf(ind)); 
 plot(xf,yf,'o',xf(ind),f,'-') 
 legend('data','x4') 
-
-function[u2]=propagateback(u1,sgn,lambda,dx,dy,Nx,Ny,X,Y,z1,z2,f)
-% z1=20e-2; % Distance SLM to Lens
-% z2=20e-2; % Distance Lens to screen
-% f=20e-2;  % focal length of lens
-
-global shiftu
-global shiftr
-SLM=ones(2446,2446);
-[nor,noc]=size(SLM);
-Tf(1:nor,1:noc)=1;
-Tf(sqrt(X.^2+Y.^2)>=12.5e-3)=0; %pupil function of lens
-Th(1:nor,1:noc)=1;
-Th(sqrt((X+(shiftu)*dx).^2+(Y+(shiftr)*dx).^2)<=0.5e-3)=0; % <=0.5e-3 is the beam block! BB
-k=2*pi/lambda;
-
-
- u2=propTF1(u1,dx*Nx,dy*Ny,lambda,sgn*z2/2);
- u2=u2.*Th;
- u2=propTF1(u2,dx*Nx,dy*Ny,lambda,sgn*z2/2);
-
- u2=u2.*Tf.*exp(-sgn*1i*k/2/f*(X.^2+Y.^2));
- u2=propTF1(u2,dx*Nx,dy*Ny,lambda,sgn*z2);
-
-end
-function[u2]=propagateforward(u1,sgn,lambda,dx,dy,Nx,Ny,X,Y,z1,z2,f)
-% z1=20e-2; % Distance SLM to Lens
-% z2=20e-2; % Distance Lens to screen
-% f=20e-2;  % focal length of lens
-global shiftu
-global shiftr
-SLM=ones(2446,2446);
-[nor,noc]=size(SLM);
-Tf(1:nor,1:noc)=1;
-Tf(sqrt(X.^2+Y.^2)>=12.5e-3)=0; %pupil function of lens
-Th(1:nor,1:noc)=1;
-Th(sqrt((X+(shiftu)*dx).^2+(Y+(shiftr)*dx).^2)<=0.5e-3)=0; 
-k=2*pi/lambda;
-
-u_dummy=propTF1(u1,dx*Nx,dy*Ny,lambda,sgn*z1);
-u_dummy=u_dummy.*Tf.*exp(-sgn*1i*k/2/f*(X.^2+Y.^2));
-
- u2=propTF1(u_dummy,dx*Nx,dy*Ny,lambda,sgn*z2/2);
- u2=u2.*Th;
- u2=propTF1(u2,dx*Nx,dy*Ny,lambda,sgn*z2/2);
-end
-

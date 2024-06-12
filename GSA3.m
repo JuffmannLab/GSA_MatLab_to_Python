@@ -2,7 +2,7 @@ clear all; close all;
 tic;
 
 % Add path to my library
-addpath('C:\Users\thomas\Desktop\temp_gsa\lib')
+addpath('.\lib')
 
 % test=imread('laserimage_outcoupled.bmp');
 
