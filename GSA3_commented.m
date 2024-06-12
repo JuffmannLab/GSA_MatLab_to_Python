@@ -2,23 +2,28 @@
 % This script generates and manipulates holographic patterns, including
 % setting up target regions, applying Gaussian masks, and simulating phase constraints.
 
+
+
+
 % Clear workspace and close all figures
-clear all; close all; 
-tic; % Start timing
+clear all; 
+close all;
+tic; % Start timing the script
 
-% Add path to custom library functions
-addpath('.\lib')
+% Add path to the library
+addpath('.\lib');
 
-%% Define image dimensions
-Nx = 1920; % Number of pixels in x-dimension
-Ny = 1152; % Number of pixels in y-dimension
+%% Define dimensions of the image and SLM
+Nx = 1920; % Number of pixels along x-axis
+Ny = 1152; % Number of pixels along y-axis
 
-%% Define target image region of interest (ROI)
-% target image roi
-% Nimg=300; %nr of pixels in target image
-Nimg = 60; % Number of pixels in target image
+%% Define the region of interest (ROI) for the target image
+
+Nimg = 60; % Number of pixels in target image. Could be 300
+
 shiftr = 0; % Row shift for ROI
 shiftu = 0; % Column shift for ROI
+
 ROIX = Nx/2 - Nimg/2 - shiftu : Nx/2 + Nimg/2 - shiftu; % X-coordinates for ROI
 ROIY = Ny/2 - Nimg/2 - shiftr : Ny/2 + Nimg/2 - shiftr; % Y-coordinates for ROI
 

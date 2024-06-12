@@ -1,14 +1,9 @@
-% Wavefront_Shaping.m
-%
-% Description:
-% This script performs wavefront shaping using a specified target image
+%% Description:
+% This script performs laser wavefront shaping using a specified target image
 % and laser field. It implements an iterative algorithm for hologram
 % generation on a Spatial Light Modulator (SLM) and visualizes the
 % resulting phase and intensity distributions.
-%
-% Note:
-% Ensure that the necessary libraries and target image files are available
-% in the specified paths before running the script.
+
 
 % Clear workspace and close all figures
 clear all; 
@@ -16,14 +11,14 @@ close all;
 tic; % Start timing the script
 
 % Add path to the library
-addpath('.\lib')
+addpath('.\lib');
 
-% Define wavelength in meters
-lambda = 1.035e-6;
-
-%% Specify SLM (Spatial Light Modulator) dimensions
+%% Define dimensions of the image and SLM
 Nx = 1920; % Number of pixels along x-axis
 Ny = 1152; % Number of pixels along y-axis
+
+%% Specify SLM (Spatial Light Modulator) dimensions
+lambda = 1.035e-6; % Wavelength in meters
 dx = 9.2e-6; % Pixel size in x-direction
 dy = 9.2e-6; % Pixel size in y-direction
 L1 = Nx * dx; % Length of x-side

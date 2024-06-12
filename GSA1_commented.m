@@ -1,15 +1,9 @@
-% GSA1.m
-%
-% Description:
-% This script performs a wavefront shaping algorithm using Gaussian
+%% Description
+% This script performs a laser wavefront shaping algorithm using Gaussian
 % approximation and other transformations on optical fields. It includes 
 % propagation calculations, creation of masks, and application of Zernike 
 % polynomials for aberration correction. The script also generates visualizations 
 % of the transformed fields and evaluates the results.
-%
-% Note:
-% Ensure that the necessary libraries and image files are available in the 
-% specified paths before running the script.
 
 % Clear workspace and close all figures
 clear all; 
@@ -19,12 +13,13 @@ tic; % Start timing the script
 % Add path to the library
 addpath('.\lib');
 
-% Define dimensions of the input grid
+%% Define dimensions of the input grid (image dimentions)
 Nx = 2446; % Number of pixels along x-axis
 Ny = 2446; % Number of pixels along y-axis
 
 %% Define the region of interest (ROI) for the target image
-Nimg = 60; % Number of pixels in the target image for wavefront shaping
+
+Nimg = 60; % Number of pixels in the target image.
 global shiftr shiftu
 shiftr = 0; % Vertical shift
 shiftu = 0; % Horizontal shift
