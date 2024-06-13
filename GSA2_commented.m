@@ -30,8 +30,9 @@ y = -L2/2 : dy : L2/2 - dy; % Source coordinates in y
 [X, Y] = meshgrid(x, y);
 
 %% Load and prepare target image
-%Target = rgb2gray(imread('Smiley50px.png')); 
-Target = rgb2gray(imread('2gauss.png')); % Load target image and convert to grayscale
+%Target = rgb2gray(imread('PSI_red_TARGET.png')); 
+Target = rgb2gray(imread('2gauss.png')); % Load target image and convert to grayscale. 
+% NOTE: Image size in pixel must be an even number
 [p, q] = size(Target);
 
 % Define region of interest (ROI) for the target image
@@ -43,6 +44,7 @@ ROIY = Ny/2 - p/2 - shiftr : Ny/2 + p/2 - shiftr - 1;
 % Initialize target image in the ROI
 Targetn = zeros(Ny, Nx);
 Targetn(Ny/2 - p/2 : Ny/2 + p/2 - 1, Nx/2 - q/2 : Nx/2 + q/2 - 1) = abs(255 - Target);
+
 %Targetn(ROIX,ROIY)=Target;
 Targetn = Targetn / sum(sum(Targetn)); % Normalize target intensity
 Targetn = Targetn.^(1/2); % Square root of intensity for electric field
@@ -78,42 +80,38 @@ Efield = Efield .* Tf;
 
 % Parameters for iterative algorithm
 error = [];
-iteration_num = 10; % Number of iterations
+iteration_num = 60; % Number of iterations
 z = 0.1; % Propagation distance
 
 %% Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
 for i = 1:iteration_num
     tic;
-    % Backward propagation
+    % Propagate backward and display
     A = propagateback(D, -1, lambda, dx, dy, Nx, Ny, X, Y, z, z, z);
     A = A ./ sqrt(sum(sum(abs(A).^2))); % Normalize field amplitude
-
-    % Display SLM ideal intensity and phase
     as = subplot(3,5,1); imagesc(abs(A).^2); title('SLM ideal Int.');
     as = [as subplot(3,5,6)]; imagesc(angle(A)); title('SLM ideal Phase');
 
-    % Apply amplitude constraint to the hologram plane
+    % Apply amplitude constraint to the hologram plane and display
     B = Efield .* exp(1i * angle(A));
     as = [as subplot(3,5,2)]; imagesc(abs(B).^2); title('SLM true Int.');
     as = [as subplot(3,5,7)]; imagesc(angle(B)); title('SLM true Phase');
 
-    % Forward propagation
+    % Propagate forward and display
     %C = 1/sqrt(Nx*Ny)*fftshift(fft2(fftshift(B)));
     C = propagateforward(B, 1, lambda, dx, dy, Nx, Ny, X, Y, z, z, z);
     C = C ./ sqrt(sum(sum(abs(C).^2))); % Normalize field amplitude
     as = [as subplot(3,5,3)]; imagesc(abs(C).^2); title('Image Int.');
     as = [as subplot(3,5,8)]; imagesc(angle(C)); title('Image Phase');
 
-    % Update deflected field with target phase
+    % Update and display deflected field with target phase
     D = Targetn .* exp(1i * angle(C)); %noise window
     as = [as subplot(3,5,4)]; imagesc(abs(D).^2); title('Image ideal Int.');
     as = [as subplot(3,5,9)]; imagesc(angle(D)); title('Image enforced phase');
 
-    % Compute error and efficiency
+    % Compute and display error and efficiency
     error = sum(sum(abs(abs(C .* mask).^2 - abs(Targetn .* mask).^2)));
     deff = sum(sum(abs(C .* mask).^2)) / sum(sum(abs(C).^2));
-
-    % Display error and efficiency
     subplot(3,5,5); hold on; plot(i, error, 'bo'); hold off; title('Error');
     subplot(3,5,10); hold on; plot(i, deff, 'bo'); hold off; title('Efficiency');
 

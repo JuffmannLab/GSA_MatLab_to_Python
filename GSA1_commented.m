@@ -88,9 +88,9 @@ Target = double(Target);
 NX = 1920;
 NY = 1152;
 
-% TARGET = imresize(Target, [NY NX]); % commented 2024, alternative to the
+%TARGET = imresize(Target, [NY NX]); % commented 2024, alternative to the
 % next row
-TARGET = imresize(Target*0, [NY NX]); % Initialize TARGET to zero
+TARGET = imresize(Target*0, [NY NX]); % Initialize TARGET to zero. Uncommented 2024
 %TARGET = zeros(NY, NX); % Other way to initialize TARGET to zero
 Zernikepadded = TARGET; % Initialize Zernike pattern arrays
 Zernikepadded_tilt = TARGET;
@@ -122,7 +122,7 @@ Tf2(sqrt(X.^2 + Y.^2) >= 5.3e-3) = 1;
 maskconstraint(sqrt((X + shiftu * dx).^2 + (Y + shiftr * dx).^2) >= Nimg/2 * dx + 0.2e-5) = 0; % Wavefront shaping mask
 
 maskconstraint_gaussian(sqrt((X + shiftu * dx).^2 + (Y + shiftr * dx).^2) >= Nimg/10 * dx + 0.2e-5) = 0;
-%Target(mask==1)=EfieldTarget(Ny/2-Nimg/2:Ny/2+Nimg/2,Nx/2-Nimg/2:Nx/2+Nimg/2);%gaussian; commented 2024
+%Target(mask==1)=EfieldTarget(Ny/2-Nimg/2:Ny/2+Nimg/2,Nx/2-Nimg/2:Nx/2+Nimg/2); % reshape the target as a gaussian; commented 2024
 %Target=Target.*maskconstraint_gaussian; % commented 2024
 
 const = 0;
@@ -134,54 +134,72 @@ Efield = Efield .* Tf;
 k = 1;
 K = 1;
 error = [];
-iteration_num = 1;
+iteration_num = 10;
 clims = [0 MAX];
 
 Z_p = 0.5; % Sampling parameter. Note: non critical sampling - <0.2
 for i = 1:iteration_num
     tic;
+    % Propagate backward and display
     %A = sqrt(Nx*Ny)*ifftshift(ifft2(ifftshift(D)));
     A = propagateback1(D, -1, lambda, dx, dy, Nx, Ny, X, Y, Z_p, Z_p, Z_p);
     A = A ./ sqrt(sum(sum(abs(A).^2))) .* Tf;
-%       as = subplot(3,5,1); imagesc(abs(A).^2); title('SLM ideal Int.'); 
-%   	as = [as subplot(3,5,6)]; imagesc(angle(A)); title('SLM ideal Phase'); 
+    as = subplot(3,5,1); imagesc(abs(A).^2); title('SLM ideal Int.'); 
+    as = [as subplot(3,5,6)]; imagesc(angle(A)); title('SLM ideal Phase'); 
 
-    B = Efield .* exp(1i * angle(A)) .* Tf; % Apply amplitude constraint to the hologram plane
+    % Apply amplitude constraint to the hologram plane and display
+    B = Efield .* exp(1i * angle(A)) .* Tf;
     %sum(sum(abs(B).^2))
-%   	as = [as subplot(3,5,2)]; imagesc(abs(B).^2); title('SLM true Int.'); 
-%   	as = [as subplot(3,5,7)]; imagesc(angle(B)); title('SLM true Phase'); 
+    as = [as subplot(3,5,2)]; imagesc(abs(B).^2); title('SLM true Int.'); 
+    as = [as subplot(3,5,7)]; imagesc(angle(B)); title('SLM true Phase'); 
 
+    % Propagate forward and display
     %C = 1/sqrt(Nx*Ny)*fftshift(fft2(fftshift(B)));
     C = propagateforward1(B, 1, lambda, dx, dy, Nx, Ny, X, Y, Z_p, Z_p, Z_p);
     C = C ./ sqrt(sum(sum(abs(C).^2))) .* Tf;
-%   	as = [as subplot(3,5,3)]; imagesc(abs(C).^2); title('Image Int.'); 
-%   	as = [as subplot(3,5,8)]; imagesc(angle(C)); title('Image Phase'); 
+    as = [as subplot(3,5,3)]; imagesc(abs(C).^2); title('Image Int.'); 
+    as = [as subplot(3,5,8)]; imagesc(angle(C)); title('Image Phase'); 
 
+    % Update and display deflected field with target phase
     D = C; % Update D with propagated field
-    D = K * abs(Target) .* exp(1i * angle(C)) .* Tf; % Apply GSA
+    D = K * abs(Target) .* exp(1i * angle(C)) .* Tf;
     %D=D/sqrt(sum(sum(abs(D).^2)));
-%   	as = [as subplot(3,5,4)]; imagesc(abs(D).^2); title('Image ideal Int.');
-%   	as = [as subplot(3,5,9)]; imagesc(angle(D)); title('Image enforced phase');
+    as = [as subplot(3,5,4)]; imagesc(abs(D).^2); title('Image ideal Int.');
+    as = [as subplot(3,5,9)]; imagesc(angle(D)); title('Image enforced phase');
 
     
-    % Compute error and correlation
+    % Compute and display error and efficiency
     error = sum(sum(abs(abs(C).^2 - abs(Target).^2))); %60 px image
     correlationCODE = corr2(abs(C .* mask).^2, abs(Target .* mask).^2);
     deff = sum(sum(abs(C .* mask).^2)) / sum(sum(abs(C).^2));
-%   	subplot(3,5,5); hold on ; plot(i,error,'bo'); hold off; title('Error');
-%   	subplot(3,5,10); hold on ; plot(i,deff,'bo'); hold off; title('Efficiency');
-%   	subplot(3,5,11); hold on ; plot(i,correlation,'bo'); hold off; title('Correlation');
+    subplot(3,5,5); hold on ; plot(i,error,'bo'); hold off; title('Error');
+    subplot(3,5,10); hold on ; plot(i,deff,'bo'); hold off; title('Efficiency');
+%    subplot(3,5,11); hold on ; plot(i,correlation,'bo'); hold off; title('Correlation');
 
     
     toc;
-%   drawnow;
-%	linkaxes(as);
+    drawnow;
+	linkaxes(as);
 %   pause;
 end
 
 figure(5);
 imagesc(abs(C(1215:1235, 1214:1234)).^2);
 %figure();subplot(1,2,1); imagesc(abs(C).^2); subplot(1,2,2); imagesc(abs(Target).^2);
+
+%% Generate image for display on the SLM
+data = angle(B); % Hologram phase data
+
+% Normalize the data to the range [0, 1]
+min_val = min(data(:));
+max_val = max(data(:));
+normalized_data = (data - min_val) / (max_val - min_val);
+
+% Convert normalized data to 8-bit unsigned integers
+image_data = uint8(normalized_data * 255);
+
+% Save the image as BMP
+imwrite(image_data, '2gauss-marius.bmp');
 
 
 %% Define Zernikes in appropriate dimensions

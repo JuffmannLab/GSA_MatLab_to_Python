@@ -20,9 +20,14 @@ y = np.linspace(-1, 1, image_size[0])
 x, y = np.meshgrid(x, y)
 
 # Define Gaussian parameters
-sigma = 0.2
-mean1 = (-0.3, -1)
-mean2 = (0.3, -1)
+#fwhm 4.3
+#dist 6
+zoomfactor = 60
+fwhm = 4.3
+ratio_fwhm_sigma=2.355
+sigma = fwhm/ratio_fwhm_sigma/zoomfactor
+mean1 = (-3/zoomfactor, -0.1)
+mean2 = (3/zoomfactor, -0.1)
 
 # Define the two Gaussian functions
 gaussian1 = np.exp(-((x - mean1[0])**2 + (y - mean1[1])**2) / (2 * sigma**2))
