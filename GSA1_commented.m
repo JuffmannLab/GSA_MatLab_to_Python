@@ -12,7 +12,6 @@ tic; % Start timing the script
 
 % Add path to the library
 addpath('.\lib');
-
 %% Define dimensions of the input grid (image dimentions)
 Nx = 2446; % Number of pixels along x-axis
 Ny = 2446; % Number of pixels along y-axis
@@ -125,8 +124,7 @@ maskconstraint_gaussian(sqrt((X + shiftu * dx).^2 + (Y + shiftr * dx).^2) >= Nim
 %Target(mask==1)=EfieldTarget(Ny/2-Nimg/2:Ny/2+Nimg/2,Nx/2-Nimg/2:Nx/2+Nimg/2); % reshape the target as a gaussian; commented 2024
 %Target=Target.*maskconstraint_gaussian; % commented 2024
 
-const = 0;
-D = Target .* exp(1i * const); % Initial deflection
+D = Target .* exp(1i * 0); % Initial deflection
 
 Efield = Efield .* Tf;
 

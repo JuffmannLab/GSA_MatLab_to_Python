@@ -5,12 +5,7 @@
 % resulting phase and intensity distributions.
 
 %% Structure
-% 1. Define dimensions of SLM
-% 2. Load target image and define region of interest
-% 3. Invert image intensity
-% 4. Define amplitude contraint on the SLM (gaussian beam)
-% 5. Initialize GSA
-% 6. Calculate hologram with GSA
+% 1. Define dimensions of image and SLM
 
 
 % Clear workspace and close all figures
@@ -38,7 +33,7 @@ x = -L1/2 : dx : L1/2 - dx; % Source coordinates in x
 y = -L2/2 : dy : L2/2 - dy; % Source coordinates in y
 [X, Y] = meshgrid(x, y);
 
-%% 2. Load target image and define region of interest
+%% Load and prepare target image
 %Target = rgb2gray(imread('PSI_red_TARGET.png')); 
 Target = rgb2gray(imread('2gauss.png')); % Load target image and convert to grayscale. 
 % NOTE: Image size in pixel must be an even number
@@ -56,21 +51,20 @@ ROIY = Ny/2 - p/2 - shiftr : Ny/2 + p/2 - shiftr - 1;
 mask = zeros(Ny, Nx);
 mask(ROIY, ROIX) = 1;
 
-%% 3. Another mask of SLM size, displaying inverted target image in the ROI
+%% Another mask of SLM size, displaying inverted target image in the ROI
 
 Targetn = zeros(Ny, Nx); % SLM size
 Targetn(Ny/2 - p/2 : Ny/2 + p/2 - 1, Nx/2 - q/2 : Nx/2 + q/2 - 1) = abs(255 - Target); % Inverted target in the ROI
 Targetn = Targetn / sum(sum(Targetn)); % Normalize target intensity to [0,1]
 Targetn = Targetn.^(1/2); % Square root of intensity (for electric field amplitude)
 
-%% 4. Amplitude constraint on SLM: gaussian beam
+%% Amplitude constraint on SLM: gaussian beam
 % Define Gaussian Laser field hitting the SLM
 x0 = 0; % Center x-coordinate
 y0 = 0; % Center y-coordinate
-sigma = 2.7e-3 / 2 * 3; % Sigma value for Gaussian
-
+sigma1 = 2.7e-3 / 2 * 3; % Sigma value for Gaussian
 Amp = 1; % Amplitude of the Gaussian
-Intensity = (Amp * exp(- (2 * ((X - x0).^2  + (Y - y0).^2 )/ sigma^2)));
+Intensity = (Amp * exp(- (2 * ((X - x0).^2  + (Y - y0).^2 )/ sigma1^2)));
 Intensity = Intensity / sum(sum(Intensity)); % Normalize intensity to [0,1]
 
 % Initialize SLM and mask constraints
@@ -80,17 +74,18 @@ Tf(sqrt(X.^2 + Y.^2) >= 5.3e-3) = 0; % Circular mask
 Efield = Intensity.^(1/2); % Electric field amplitude
 Efield = Efield .* Tf; % Apply circular mask
 
-%% 5. Initialize iterative algorithm
+%% Initialize iterative algorithm
 
 % Initial phase (zero) for the target
-D = Targetn .* exp(1i * zeros(Ny, Nx)); % Initial deflection. 1i = "one i" makes it a complex number
+Phase_TEN = zeros(Ny, Nx);
+D = Targetn .* exp(1l1i * Phase_TEN); % Initial deflection
 
 % Parameters for iterative algorithm
 error = [];
 iteration_num = 5; % Number of iterations
 z = 0.1; % Propagation distance
 
-%% 6. Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
+%% Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
 for i = 1:iteration_num
     tic;
     % Propagate backward and display

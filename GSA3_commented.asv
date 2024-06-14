@@ -188,8 +188,8 @@ D = TEN .* exp(1i * zeros(Ny, Nx)); % Define initial complex field
 Efield = Efield .* Tf; % Apply mask to electric field
 
 %% Set iteration parameters
-k = 1; % Iteration counter, used for quadratic phase initialization and similar
-K = 1; % Scaling factor, a support matrix for propagation
+k = 1; % Iteration counter
+K = 1; % Scaling factor
 error = []; % Initialize error array
 iteration_num = 5; % Number of iterations
 clims = [0 MAX]; % Color limits for visualization
@@ -212,7 +212,7 @@ for i = 1: iteration_num
     
     % Forward-propagation
     %C = 1/sqrt(Nx*Ny)*fftshift(fft2(fftshift(B)));
-    C = propagateforward(B, 1, lambda, dx, dy, Nx, Ny, X, Y, z, z, z); % Forward-propagate
+    C = propagateforward(B, 1, lambda, dx, dy, Nx, Ny, X, Y, 0.2, 0.2, 0.2); % Forward-propagate
     C = C / sqrt(sum(sum(abs(C).^2))); % Normalize
     as = [as subplot(3, 5, 3)]; imagesc(abs(C).^2); title('Image Int.'); % Display image intensity
     as = [as subplot(3, 5, 8)]; imagesc(angle(C)); title('Image Phase'); % Display image phase
