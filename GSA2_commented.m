@@ -34,9 +34,14 @@ dy = 9.2e-6;
 L1 = Nx * dx; % Absolute size
 L2 = Ny * dy; 
 
-x = -L1/2 : dx : L1/2 - dx; % Source coordinates in x
-y = -L2/2 : dy : L2/2 - dy; % Source coordinates in y
+x = -L1/2 : dx : L1/2 - dx; % Centered screen coordinates in meters
+y = -L2/2 : dy : L2/2 - dy; 
 [X, Y] = meshgrid(x, y);
+%|-------- y[m] ^---------------|
+%|              |               |
+%|--------------|---------------> x[m]
+%|              |               |
+%|--------------|---------------|
 
 %% 2. Load target image and define region of interest
 %Target = rgb2gray(imread('PSI_red_TARGET.png')); 
@@ -49,48 +54,58 @@ shiftr = 0; % Vertical shift
 shiftu = 0; % Horizontal shift
 ROIX = Nx/2 - q/2 - shiftu : Nx/2 + q/2 - shiftu - 1; % why the -1?
 ROIY = Ny/2 - p/2 - shiftr : Ny/2 + p/2 - shiftr - 1;
-
-
+%^ y[px]------------------------|
+%|           ,--------,         |
+%|       ROIy|        |         |
+%|           '--------'ROIx     |
+%|------------------------------> x[px]
 
 % Maks of SLM size, zero outside ROI
 mask = zeros(Ny, Nx);
 mask(ROIY, ROIX) = 1;
+%^ y[px]------------------------|
+%|           ,--------,         |
+%| 000...    | 111111 |         |
+%|           '--------'  000... |
+%|------------------------------> x[px]
 
-%% 3. Another mask of SLM size, displaying inverted target image in the ROI
+% Invert and normalize target in the ROI
+TargetInvNorm = zeros(Ny, Nx); % SLM size
+InvertedTarget = abs(255 - Target);
+TargetInvNorm(ROIY, ROIX) = InvertedTarget; % Inverted target in the ROI
+TargetInvNorm = TargetInvNorm / sum(sum(TargetInvNorm)); % Normalize target intensity to [0,1]
+TargetInvNorm = TargetInvNorm.^(1/2); % Square root of intensity (for electric field amplitude)
 
-Targetn = zeros(Ny, Nx); % SLM size
-Targetn(Ny/2 - p/2 : Ny/2 + p/2 - 1, Nx/2 - q/2 : Nx/2 + q/2 - 1) = abs(255 - Target); % Inverted target in the ROI
-Targetn = Targetn / sum(sum(Targetn)); % Normalize target intensity to [0,1]
-Targetn = Targetn.^(1/2); % Square root of intensity (for electric field amplitude)
-
-%% 4. Amplitude constraint on SLM: gaussian beam
+%% 3. Amplitude constraint on SLM: gaussian beam
 % Define Gaussian Laser field hitting the SLM
 x0 = 0; % Center x-coordinate
 y0 = 0; % Center y-coordinate
-sigma = 2.7e-3 / 2 * 3; % Sigma value for Gaussian
+sigma = 2.7e-3 * (3/2); % Sigma value for Gaussian
+Amp = 1;
 
-Amp = 1; % Amplitude of the Gaussian
-Intensity = (Amp * exp(- (2 * ((X - x0).^2  + (Y - y0).^2 )/ sigma^2)));
+Intensity = (Amp * exp(-2 * ((X - x0).^2  + (Y - y0).^2 )/ sigma^2));
 Intensity = Intensity / sum(sum(Intensity)); % Normalize intensity to [0,1]
 
-% Initialize SLM and mask constraints
-Tf(1:Ny, 1:Nx) = 1;
-Tf(sqrt(X.^2 + Y.^2) >= 5.3e-3) = 0; % Circular mask
+% Circular mask on SLM
+CircMask(1:Ny, 1:Nx) = 1;
+MaskRadius = 5.3e-3;
+CircMask(sqrt(X.^2 + Y.^2) >= MaskRadius) = 0; % Circular mask, 0 outside a certain radius
 
+%% 4. Initialize iterative algorithm
+
+% Electric field constraint
 Efield = Intensity.^(1/2); % Electric field amplitude
-Efield = Efield .* Tf; % Apply circular mask
-
-%% 5. Initialize iterative algorithm
+Efield = Efield .* CircMask; % Apply circular mask
 
 % Initial phase (zero) for the target
-D = Targetn .* exp(1i * zeros(Ny, Nx)); % Initial deflection. 1i = "one i" makes it a complex number
+D = TargetInvNorm .* exp(1i * zeros(Ny, Nx)); % Initial deflection. 1i = "one i" makes it a complex number
 
 % Parameters for iterative algorithm
 error = [];
 iteration_num = 5; % Number of iterations
 z = 0.1; % Propagation distance
 
-%% 6. Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
+%% 5. Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
 for i = 1:iteration_num
     tic;
     % Propagate backward and display
@@ -112,12 +127,12 @@ for i = 1:iteration_num
     as = [as subplot(3,5,8)]; imagesc(angle(C)); title('Image Phase');
 
     % Update and display deflected field with target phase
-    D = Targetn .* exp(1i * angle(C)); %noise window
+    D = TargetInvNorm .* exp(1i * angle(C)); %noise window
     as = [as subplot(3,5,4)]; imagesc(abs(D).^2); title('Image ideal Int.');
     as = [as subplot(3,5,9)]; imagesc(angle(D)); title('Image enforced phase');
 
     % Compute and display error and efficiency
-    error = sum(sum(abs(abs(C .* mask).^2 - abs(Targetn .* mask).^2)));
+    error = sum(sum(abs(abs(C .* mask).^2 - abs(TargetInvNorm .* mask).^2)));
     deff = sum(sum(abs(C .* mask).^2)) / sum(sum(abs(C).^2));
     subplot(3,5,5); hold on; plot(i, error, 'bo'); hold off; title('Error');
     subplot(3,5,10); hold on; plot(i, deff, 'bo'); hold off; title('Efficiency');

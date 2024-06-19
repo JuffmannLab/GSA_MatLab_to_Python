@@ -5,7 +5,12 @@
 % resulting phase and intensity distributions.
 
 %% Structure
-% 1. Define dimensions of image and SLM
+% 1. Define dimensions of SLM
+% 2. Load target image and define region of interest
+% 3. Invert image intensity
+% 4. Define amplitude contraint on the SLM (gaussian beam)
+% 5. Initialize GSA
+% 6. Calculate hologram with GSA
 
 
 % Clear workspace and close all figures
@@ -29,11 +34,17 @@ dy = 9.2e-6;
 L1 = Nx * dx; % Absolute size
 L2 = Ny * dy; 
 
-x = -L1/2 : dx : L1/2 - dx; % Source coordinates in x
-y = -L2/2 : dy : L2/2 - dy; % Source coordinates in y
+x = -L1/2 : dx : L1/2 - dx; % Centered screen coordinates in meters
+y = -L2/2 : dy : L2/2 - dy; 
+%|-------- y[m] ^---------------|
+%|              |               |
+%|--------------|---------------> x[m]
+%|              |               |
+%|--------------|---------------|
+
 [X, Y] = meshgrid(x, y);
 
-%% Load and prepare target image
+%% 2. Load target image and define region of interest
 %Target = rgb2gray(imread('PSI_red_TARGET.png')); 
 Target = rgb2gray(imread('2gauss.png')); % Load target image and convert to grayscale. 
 % NOTE: Image size in pixel must be an even number
@@ -44,48 +55,60 @@ shiftr = 0; % Vertical shift
 shiftu = 0; % Horizontal shift
 ROIX = Nx/2 - q/2 - shiftu : Nx/2 + q/2 - shiftu - 1; % why the -1?
 ROIY = Ny/2 - p/2 - shiftr : Ny/2 + p/2 - shiftr - 1;
-
+%^ y[px]------------------------|
+%|           ,--------,         |
+%|       ROIy|        |         |
+%|           '--------'ROIx     |
+%|------------------------------> x[px]
 
 
 % Maks of SLM size, zero outside ROI
 mask = zeros(Ny, Nx);
 mask(ROIY, ROIX) = 1;
+%^ y[px]------------------------|
+%|           ,--------,         |
+%| 000...    | 111111 |         |
+%|           '--------'  000... |
+%|------------------------------> x[px]
 
-%% Another mask of SLM size, displaying inverted target image in the ROI
+%% 2.1. Another mask of SLM size, displaying inverted target image in the ROI
 
 Targetn = zeros(Ny, Nx); % SLM size
-Targetn(Ny/2 - p/2 : Ny/2 + p/2 - 1, Nx/2 - q/2 : Nx/2 + q/2 - 1) = abs(255 - Target); % Inverted target in the ROI
+InvertedTarget = abs(255 - Target);
+Targetn(ROIY, ROIX) = InvertedTarget; % Inverted target in the ROI
 Targetn = Targetn / sum(sum(Targetn)); % Normalize target intensity to [0,1]
 Targetn = Targetn.^(1/2); % Square root of intensity (for electric field amplitude)
 
-%% Amplitude constraint on SLM: gaussian beam
+%% 3. Amplitude constraint on SLM: gaussian beam
 % Define Gaussian Laser field hitting the SLM
 x0 = 0; % Center x-coordinate
 y0 = 0; % Center y-coordinate
-sigma1 = 2.7e-3 / 2 * 3; % Sigma value for Gaussian
-Amp = 1; % Amplitude of the Gaussian
-Intensity = (Amp * exp(- (2 * ((X - x0).^2  + (Y - y0).^2 )/ sigma1^2)));
+sigma = 2.7e-3 * (3/2); % Sigma value for Gaussian
+Amp = 1;
+
+Intensity = (Amp * exp(- (2 * ((X - x0).^2  + (Y - y0).^2 )/ sigma^2)));
 Intensity = Intensity / sum(sum(Intensity)); % Normalize intensity to [0,1]
 
-% Initialize SLM and mask constraints
-Tf(1:Ny, 1:Nx) = 1;
-Tf(sqrt(X.^2 + Y.^2) >= 5.3e-3) = 0; % Circular mask
+% Circular mask on SLM
+CircMask(1:Ny, 1:Nx) = 1;
+MaskRadius = 5.3e-3;
+CircMask(sqrt(X.^2 + Y.^2) >= MaskRadius) = 0; % Circular mask, 0 outside a certain radius
 
+%% 4. Initialize iterative algorithm
+
+% Electric field constraint
 Efield = Intensity.^(1/2); % Electric field amplitude
-Efield = Efield .* Tf; % Apply circular mask
-
-%% Initialize iterative algorithm
+Efield = Efield .* CircMask; % Apply circular mask
 
 % Initial phase (zero) for the target
-Phase_TEN = zeros(Ny, Nx);
-D = Targetn .* exp(1l1i * Phase_TEN); % Initial deflection
+D = Targetn .* exp(1i * zeros(Ny, Nx)); % Initial deflection. 1i = "one i" makes it a complex number
 
 % Parameters for iterative algorithm
 error = [];
 iteration_num = 5; % Number of iterations
 z = 0.1; % Propagation distance
 
-%% Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
+%% 5. Iterative optimization using Gerchberg-Saxton Algorithm (GSA)
 for i = 1:iteration_num
     tic;
     % Propagate backward and display
